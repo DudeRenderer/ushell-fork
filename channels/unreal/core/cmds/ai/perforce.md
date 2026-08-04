@@ -1,0 +1,3 @@
+- Source control if there is no known SCM marker;
+	- If a file is read-only, open it with "p4 edit <filepath>"
+	- Newly created files must be added with "p4 add"
