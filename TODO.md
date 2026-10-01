@@ -52,15 +52,17 @@ Validation: Four Windows provisioning tests passed: offline missing package, cor
 
 ## 3. 改造工具解析、安装与缓存
 
-- [ ] 在 `bootstrap.py` 接入本地包来源，沿用现有工具安装目录、命令声明和 shim 生成方式。
-- [ ] 按工具名、版本和平台匹配依赖，不使用其他版本或任意 PATH 程序替代。
-- [ ] 仅处理当前平台启用的 bundle，并完整部署 Clink DLL 等配套文件。
-- [ ] 校验旧工具缓存的版本和必需文件，通过后复用；损坏缓存可从仓库修复。
-- [ ] 在临时目录中完成本地包校验、解包和必需文件检查，成功后发布缓存。
-- [ ] 对缺包、损坏、版本不匹配和解包失败提供明确错误；损坏的本地包不静默转为下载。
-- [ ] 安装失败不留下成功标记或残缺命令清单，不提前破坏可用安装。
-- [ ] 更新 bootstrap 失效标记，避免旧主 manifest 绕过新检查。
-- [ ] 后续启动能够识别依赖文件丢失，并重新进入本地修复流程。
+- [x] 在 `bootstrap.py` 接入本地包来源，沿用现有工具安装目录、命令声明和 shim 生成方式。
+- [x] 按工具名、版本和平台匹配依赖，不使用其他版本或任意 PATH 程序替代。
+- [x] 仅处理当前平台启用的 bundle，并完整部署 Clink DLL 等配套文件。
+- [x] 校验旧工具缓存的版本和必需文件，通过后复用；损坏缓存可从仓库修复。
+- [x] 在临时目录中完成本地包校验、解包和必需文件检查，成功后发布缓存。
+- [x] 对缺包、损坏、版本不匹配和解包失败提供明确错误；损坏的本地包不静默转为下载。
+- [x] 安装失败不留下成功标记或残缺命令清单，不提前破坏可用安装。
+- [x] 更新 bootstrap 失效标记，避免旧主 manifest 绕过新检查。
+- [x] 后续启动能够识别依赖文件丢失，并重新进入本地修复流程。
+
+Validation: Eleven resolver/installation tests passed, including interrupted installation and publication rollback. An isolated bootstrap passed fresh initialization, unchanged warm manifest reuse, and automatic Clink DLL repair.
 
 ## 4. 统一联网控制与 Windows 入口行为
 
