@@ -1,6 +1,9 @@
 
  ushell - A command line interface for the Unreal Engine
 
+For an overview of startup, channel composition, command execution, and the
+supported extension points, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
 # Quick Start Guide
 
 1. Create a shortcut to 'ushell.bat'
