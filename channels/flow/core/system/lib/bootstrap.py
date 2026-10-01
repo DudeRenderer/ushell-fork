@@ -50,6 +50,7 @@ _log = None
 
 #-------------------------------------------------------------------------------
 def _http_get(url, dest_dir, progress_cb=None):
+    dependencies.require_downloads(f"Downloading tool payload '{url}'")
     import re
     from urllib.request import urlopen
 
@@ -76,7 +77,11 @@ def _http_get(url, dest_dir, progress_cb=None):
     content_header = client.headers.get("content-disposition", "")
     m = re.search(r'filename="?([^;"]+)"?(;|$)', content_header)
     if m: file_name = m.group(1)
-    else: file_name = os.path.basename(client.url)
+    else:
+        from urllib.parse import urlsplit, unquote
+        file_name = os.path.basename(unquote(urlsplit(client.url).path))
+    if dependencies.is_windows():
+        dependencies.safe_path(dest_dir, file_name)
     dest_path = dest_dir + file_name
     assert not os.path.exists(dest_path), f"Directory '{dest_path}' unexpectedly exists"
 
@@ -474,6 +479,7 @@ def _build_channel(channel_name:str, channel_dir:Path, cleaner:"_Cleaner") -> di
 
     # Install channel's pips.
     if channel._pips:
+        dependencies.require_downloads(f"Installing Pip dependencies for channel '{channel_name}'")
         _log.print("Pips:")
         _log.indent("Pips")
         for pip_name in channel._pips:
@@ -481,6 +487,8 @@ def _build_channel(channel_name:str, channel_dir:Path, cleaner:"_Cleaner") -> di
             cmd = (sys.executable, "-Xutf8", "-Esum", "pip", "install", pip_name)
             result = sp.run(cmd, stdout=sp.DEVNULL, stderr=sp.DEVNULL)
             if result.returncode:
+                if dependencies.is_windows():
+                    raise RuntimeError(f"Failed to install Pip dependency '{pip_name}'")
                 _log.print(" ...failed");
         _log.unindent()
 

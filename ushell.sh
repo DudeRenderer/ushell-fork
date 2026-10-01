@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Launch as a sub-shell if the the script was not sourced into the current shell
-if [ $0 = "$BASH_SOURCE" ]; then
+if [ "$0" = "$BASH_SOURCE" ]; then
     args=""
     for arg in "$@"
     do
@@ -20,10 +20,10 @@ if [ -n "$BASH" ]; then
 elif [ -n "$ZSH_NAME" ]; then
     host_shell=zsh
 elif [ -n "$SHELL" ]; then
-    host_shell=$(basename $SHELL)
+    host_shell=$(basename "$SHELL")
 fi
 
-if [ -z $host_shell ]; then
+if [ -z "$host_shell" ]; then
     echo Error: Unable to determine host shell because \$SHELL is unset.
     echo
     return
@@ -38,11 +38,18 @@ else
     cookie=/tmp/ushell_$$_shell_cookie
 fi
 
-$(dirname ${BASH_SOURCE:-$0})/channels/flow/$channel/boot.sh --bootarg=$host_shell,$cookie "$@"
+"$(dirname "${BASH_SOURCE:-$0}")/channels/flow/$channel/boot.sh" "--bootarg=$host_shell,$cookie" "$@"
+boot_result=$?
+if [ "$channel" = nt ] && [ "$boot_result" -ne 0 ]; then
+    return "$boot_result"
+fi
+if [ "$channel" = nt ]; then
+    cookie=$(cygpath --unix "$cookie")
+fi
 
-if [ -f $cookie ]; then
-    chmod u+x $cookie
-    source $cookie
-    unlink $cookie
+if [ -f "$cookie" ]; then
+    chmod u+x "$cookie"
+    source "$cookie"
+    unlink "$cookie"
     unset cookie
 fi

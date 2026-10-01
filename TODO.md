@@ -66,12 +66,14 @@ Validation: Eleven resolver/installation tests passed, including interrupted ins
 
 ## 4. 统一联网控制与 Windows 入口行为
 
-- [ ] Windows 依赖下载统一遵守 `USHELL_ALLOW_DOWNLOADS=1` 开关，默认不发起下载。
-- [ ] 遗留 Channel Pip 安装和工具下载诊断入口遵守同一开关。
-- [ ] 保持 P4、构建产物下载等业务命令的联网行为不受此依赖策略影响。
-- [ ] 修正相关 Windows 入口的路径引用，支持仓库目录和工作目录包含空格、中文。
-- [ ] 修正 cmd、PowerShell 和 Windows Bash 的错误码传播，确保离线缺包和初始化失败能传回调用方。
-- [ ] 确保共用代码的 Windows 分支改动不改变 Linux/macOS 的依赖安装策略。
+- [x] Windows 依赖下载统一遵守 `USHELL_ALLOW_DOWNLOADS=1` 开关，默认不发起下载。
+- [x] 遗留 Channel Pip 安装和工具下载诊断入口遵守同一开关。
+- [x] 保持 P4、构建产物下载等业务命令的联网行为不受此依赖策略影响。
+- [x] 修正相关 Windows 入口的路径引用，支持仓库目录和工作目录包含空格、中文。
+- [x] 修正 cmd、PowerShell 和 Windows Bash 的错误码传播，确保离线缺包和初始化失败能传回调用方。
+- [x] 确保共用代码的 Windows 分支改动不改变 Linux/macOS 的依赖安装策略。
+
+Validation: Four download-policy tests and three launcher integration tests passed. cmd, Windows PowerShell, and Git Bash were each checked for fresh offline bootstrap and missing-tool failure propagation from Unicode repository/working paths.
 
 ## 5. 更新文档与分发行为
 
