@@ -86,6 +86,8 @@ Validation: A gathered standalone deployment retained all six ZIPs, manifest.jso
 
 ## 6. 测试与验收
 
+Progress: Full cmd, Windows PowerShell 5.1, and Git Bash sessions now pass in Unicode paths, including native imports, command shims, completion, versions, cache reuse, missing-tool repair, and corrupt-state recovery. Acceptance testing exposed and fixed UTF-8 boot-cookie decoding in Windows PowerShell 5.1.
+
 - [ ] 使用标准库 `unittest` 验证来源优先级及版本、平台匹配。
 - [ ] 验证缺包、SHA-256 错误、安装中断、必需文件缺失和缓存修复行为。
 - [ ] 验证默认禁止下载时，依赖网络入口不会被调用。
