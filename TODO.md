@@ -88,20 +88,30 @@ Validation: A gathered standalone deployment retained all six ZIPs, manifest.jso
 
 Progress: Full cmd, Windows PowerShell 5.1, and Git Bash sessions now pass in Unicode paths, including native imports, command shims, completion, versions, cache reuse, missing-tool repair, and corrupt-state recovery. Acceptance testing exposed and fixed UTF-8 boot-cookie decoding in Windows PowerShell 5.1.
 
-- [ ] 使用标准库 `unittest` 验证来源优先级及版本、平台匹配。
-- [ ] 验证缺包、SHA-256 错误、安装中断、必需文件缺失和缓存修复行为。
-- [ ] 验证默认禁止下载时，依赖网络入口不会被调用。
-- [ ] 通过受控下载替身验证 `USHELL_ALLOW_DOWNLOADS=1` 的网络后备分支。
-- [ ] 检查所有依赖包的清单、校验值、许可证及必需运行文件。
-- [ ] 验证打包后的 Python 标准库及项目现有原生扩展可以加载。
-- [ ] 在独立、空的 `flow_working_dir` 中，通过 cmd 完成离线初始化，不使用用户原有安装缓存。
-- [ ] 在独立、空的 `flow_working_dir` 中，通过 PowerShell 完成离线初始化，不使用用户原有安装缓存。
-- [ ] 验证 `.help`、命令补全查询及工具版本。
-- [ ] 再次启动，确认复用有效缓存。
-- [ ] 删除测试缓存中的工具文件，确认可从仓库恢复。
-- [ ] 覆盖仓库路径和工作目录包含空格、中文的情况。
-- [ ] 验证缺包或损坏时返回非零退出码，且不会产生成功安装标记或残缺命令清单。
-- [ ] 检查非 Windows 分支仍保持原有安装策略。
-- [ ] 有可用 Windows Bash 环境时执行启动烟测；否则明确记录验证限制。
-- [ ] 验证 gather 后的分发目录仍包含离线启动所需资源。
-- [ ] 执行 `git diff --check`，检查最终改动范围并记录验收结果。
+- [x] 使用标准库 `unittest` 验证来源优先级及版本、平台匹配。
+- [x] 验证缺包、SHA-256 错误、安装中断、必需文件缺失和缓存修复行为。
+- [x] 验证默认禁止下载时，依赖网络入口不会被调用。
+- [x] 通过受控下载替身验证 `USHELL_ALLOW_DOWNLOADS=1` 的网络后备分支。
+- [x] 检查所有依赖包的清单、校验值、许可证及必需运行文件。
+- [x] 验证打包后的 Python 标准库及项目现有原生扩展可以加载。
+- [x] 在独立、空的 `flow_working_dir` 中，通过 cmd 完成离线初始化，不使用用户原有安装缓存。
+- [x] 在独立、空的 `flow_working_dir` 中，通过 PowerShell 完成离线初始化，不使用用户原有安装缓存。
+- [x] 验证 `.help`、命令补全查询及工具版本。
+- [x] 再次启动，确认复用有效缓存。
+- [x] 删除测试缓存中的工具文件，确认可从仓库恢复。
+- [x] 覆盖仓库路径和工作目录包含空格、中文的情况。
+- [x] 验证缺包或损坏时返回非零退出码，且不会产生成功安装标记或残缺命令清单。
+- [x] 检查非 Windows 分支仍保持原有安装策略。
+- [x] 有可用 Windows Bash 环境时执行启动烟测；否则明确记录验证限制。
+- [x] 验证 gather 后的分发目录仍包含离线启动所需资源。
+- [x] 执行 `git diff --check`，检查最终改动范围并记录验收结果。
+
+## Final validation — 2026-10-01
+
+- Passed all 31 standard-library unittest cases in 85.500 seconds using the provisioned Python 3.14.3 runtime.
+- Passed full cmd, Windows PowerShell 5.1, and Git Bash sessions from isolated Unicode repository and working paths.
+- Verified all package/per-file hashes, licenses, native extensions, command shims, completion, tool versions, cache reuse/repair, failure propagation, and gathered offline distribution.
+- Verified the opt-in tool download pipeline with a controlled HTTP substitute, including upstream digest rejection. No live upstream dependency downloads were needed.
+- Rebuilt all six archives into a separate temporary output directory; each SHA-256 matched the committed snapshot.
+- Passed git diff --check and reviewed the final change scope. Each implementation step was committed and pushed separately using English Conventional Commit messages.
+- Limitation: native Linux/macOS end-to-end startup and live upstream Python/Pip downloads were not exercised. Non-Windows policy and installer routing were regression-tested using controlled substitutes.

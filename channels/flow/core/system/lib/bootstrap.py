@@ -383,7 +383,7 @@ def _valid_tool_cache(directory, manifest, package):
         if cached.get("acquisition") == "download":
             files = cached.get("required_files")
         return dependencies.valid_files(directory, files)
-    except (OSError, EOFError, ValueError, TypeError, KeyError):
+    except (OSError, EOFError, ValueError, TypeError, KeyError, AttributeError):
         return False
 
 
@@ -446,7 +446,7 @@ def _valid_dependency_state(state):
                 if not _valid_tool_cache(directory, manifest, package):
                     return False
         return True
-    except (OSError, EOFError, ValueError, TypeError, KeyError):
+    except (OSError, EOFError, ValueError, TypeError, KeyError, AttributeError):
         return False
 
 

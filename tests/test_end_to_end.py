@@ -99,6 +99,19 @@ class EndToEndTests(unittest.TestCase):
         result = self.run_command(boot, working)
         self.assertEqual(result.returncode, 127, result.stdout + result.stderr)
         self.assertIn("cmd_tree", marshal.loads(manifest.read_bytes()))
+        # Failed rebuilding must preserve the previous complete command registry.
+        previous = manifest.read_bytes()
+        archive = self.repo / "dependencies/windows-x64/fzf-0.56.3.zip"
+        original = archive.read_bytes()
+        (working / "tools/fzf-0.56.3/fzf.exe").unlink()
+        archive.write_bytes(b"corrupt repository package")
+        try:
+            result = self.run_command(boot, working)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("SHA-256 mismatch", result.stderr)
+            self.assertEqual(manifest.read_bytes(), previous)
+        finally:
+            archive.write_bytes(original)
 
     def test_full_cmd_session(self):
         working = self.root / "cmd working 中文"

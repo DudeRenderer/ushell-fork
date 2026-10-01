@@ -32,7 +32,7 @@ def collect_files(root, name):
         relative = path.relative_to(root)
         if "__pycache__" in relative.parts or path.suffix in (".log", ".version"):
             continue
-        if path.name == "manifest.2.flow" or relative.parts[0] == "Scripts":
+        if path.name in ("manifest.2.flow", ".ushell-runtime.json") or relative.parts[0] == "Scripts":
             continue
         # Embedded Python's standard library is distributed as .pyc files.
         files[relative.as_posix()] = path.read_bytes()

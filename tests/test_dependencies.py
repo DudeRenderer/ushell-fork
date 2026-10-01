@@ -175,6 +175,45 @@ class DependencyTests(unittest.TestCase):
             dependencies.extract(self.package, self.root / "extract")
         self.assertFalse((self.root / "escape.exe").exists())
 
+    def test_download_pipeline_checks_upstream_hash_and_extracts(self):
+        archive = self.packages / "test-1.0.zip"
+        data = archive.read_bytes()
+        archive.unlink()
+        self.tool.sha1(hashlib.sha1(data).hexdigest())
+        def http_get(url, destination, callback):
+            path = Path(destination) / "tool.zip"
+            path.write_bytes(data)
+            return str(path)
+        with patch.dict(os.environ, {"USHELL_ALLOW_DOWNLOADS": "1"}), \
+                patch.object(bootstrap, "_http_get", side_effect=http_get) as download:
+            self.install()
+            download.assert_called_once()
+        self.assertTrue((self.directory / "companion.dll").is_file())
+        (self.directory / "companion.dll").unlink()
+        self.tool.sha1("0" * 40)
+        with patch.dict(os.environ, {"USHELL_ALLOW_DOWNLOADS": "1"}), \
+                patch.object(bootstrap, "_http_get", side_effect=http_get):
+            with self.assertRaisesRegex(RuntimeError, "Unexpected content bundle"):
+                self.install()
+
+    def test_malformed_cache_shapes_are_rebuilt(self):
+        for bad in (None, [], {"bundles": None}):
+            with self.subTest(cache=bad):
+                self.directory.mkdir(exist_ok=True)
+                (self.directory / "manifest.2.flow").write_bytes(marshal.dumps(bad))
+                self.install()
+                self.assertTrue((self.directory / "test.exe").is_file())
+        for bad in (None, [], {"dependency_fingerprint": dependencies.fingerprint(), "channels": [None]}):
+            (self.stage / "manifest").write_bytes(marshal.dumps(bad))
+            self.assertFalse(bootstrap._valid_dependency_state(self.stage))
+
+    def test_non_windows_install_uses_existing_path(self):
+        self.install()
+        with patch.object(dependencies, "is_windows", return_value=False), \
+                patch.object(bootstrap, "_install_tool_windows", side_effect=AssertionError("Windows resolver reached")):
+            manifest = self.install()
+            self.assertEqual(manifest["double"], "test-1.0")
+
 
 if __name__ == "__main__":
     unittest.main()
