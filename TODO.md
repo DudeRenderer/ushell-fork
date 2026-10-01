@@ -40,13 +40,15 @@ Validation: All six archive and per-file SHA-256 checks passed; a second packagi
 
 ## 2. 改造 Windows Python 启动准备
 
-- [ ] 保留 `provision.bat` 入口，使用 Windows PowerShell 辅助脚本读取依赖清单、校验和展开本地 Python 包。
-- [ ] 确保首次初始化不依赖预先安装的 Python。
-- [ ] 校验已有 Python 安装的版本和必需运行文件，通过后复用。
-- [ ] 本地部署不运行 `get-pip.py` 或在线 Pip 安装。
-- [ ] 缺少可用缓存及本地包时，默认报错并说明缺失依赖、搜索路径和下载开关。
-- [ ] 显式允许下载时，保留现有固定 Python 版本及校验逻辑作为网络后备。
-- [ ] 先在临时目录完成校验、解包和运行检查，成功后发布安装并写入成功标记。
+- [x] 保留 `provision.bat` 入口，使用 Windows PowerShell 辅助脚本读取依赖清单、校验和展开本地 Python 包。
+- [x] 确保首次初始化不依赖预先安装的 Python。
+- [x] 校验已有 Python 安装的版本和必需运行文件，通过后复用。
+- [x] 本地部署不运行 `get-pip.py` 或在线 Pip 安装。
+- [x] 缺少可用缓存及本地包时，默认报错并说明缺失依赖、搜索路径和下载开关。
+- [x] 显式允许下载时，保留现有固定 Python 版本及校验逻辑作为网络后备。
+- [x] 先在临时目录完成校验、解包和运行检查，成功后发布安装并写入成功标记。
+
+Validation: Four Windows provisioning tests passed: offline missing package, corrupt archive without fallback, wrong version, and fresh install/cache reuse/DLL repair in Unicode paths.
 
 ## 3. 改造工具解析、安装与缓存
 
