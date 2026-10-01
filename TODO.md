@@ -23,18 +23,20 @@
 
 ## 1. 整理仓库依赖包
 
-- [ ] 新建 `dependencies/windows-x64/`，按依赖分别保存 ZIP，使用普通 Git 文件分发。
-- [ ] 从现有缓存整理 Python 3.14.3。
-- [ ] 从现有缓存整理 Clink 1.0.0a6。
-- [ ] 从现有缓存整理 fd 10.3.0。
-- [ ] 从现有缓存整理 fzf 0.56.3。
-- [ ] 从现有缓存整理 ripgrep 14.1.1。
-- [ ] 从现有缓存整理 vswhere 3.1.7。
-- [ ] 包含 Python 标准库、DLL、现有 Pip 模块、工具配套文件及许可证。
-- [ ] 保留 embedded Python 必需的标准库 `.pyc`；排除生成的 `__pycache__`、运行日志、工具安装 manifest 和含机器路径的 Pip 启动器。
-- [ ] 提供可重复执行的打包脚本，显式接收缓存根目录。
-- [ ] 生成版本化 JSON 清单，记录包名、版本、平台、文件名、SHA-256 和必需运行文件。
-- [ ] 在清单中注明来源为已安装缓存；为打包快照重新计算校验值，不复用上游压缩包的校验值。
+- [x] 新建 `dependencies/windows-x64/`，按依赖分别保存 ZIP，使用普通 Git 文件分发。
+- [x] 从现有缓存整理 Python 3.14.3。
+- [x] 从现有缓存整理 Clink 1.0.0a6。
+- [x] 从现有缓存整理 fd 10.3.0。
+- [x] 从现有缓存整理 fzf 0.56.3。
+- [x] 从现有缓存整理 ripgrep 14.1.1。
+- [x] 从现有缓存整理 vswhere 3.1.7。
+- [x] 包含 Python 标准库、DLL、现有 Pip 模块、工具配套文件及许可证。
+- [x] 保留 embedded Python 必需的标准库 `.pyc`；排除生成的 `__pycache__`、运行日志、工具安装 manifest 和含机器路径的 Pip 启动器。
+- [x] 提供可重复执行的打包脚本，显式接收缓存根目录。
+- [x] 生成版本化 JSON 清单，记录包名、版本、平台、文件名、SHA-256 和必需运行文件。
+- [x] 在清单中注明来源为已安装缓存；为打包快照重新计算校验值，不复用上游压缩包的校验值。
+
+Validation: All six archive and per-file SHA-256 checks passed; a second packaging run produced identical ZIP hashes.
 
 ## 2. 改造 Windows Python 启动准备
 
