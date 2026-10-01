@@ -77,10 +77,12 @@ Validation: Four download-policy tests and three launcher integration tests pass
 
 ## 5. 更新文档与分发行为
 
-- [ ] 更新 README，说明默认离线、本地包目录、依赖更新流程和下载开关用法。
-- [ ] 更新架构文档中的 Windows provisioning、工具获取、缓存及失败行为描述。
-- [ ] 更新相关第三方依赖说明，使其反映仓库已包含本地依赖包。
-- [ ] 确保 gather 分发包含依赖包、JSON 清单和许可证。
+- [x] 更新 README，说明默认离线、本地包目录、依赖更新流程和下载开关用法。
+- [x] 更新架构文档中的 Windows provisioning、工具获取、缓存及失败行为描述。
+- [x] 更新相关第三方依赖说明，使其反映仓库已包含本地依赖包。
+- [x] 确保 gather 分发包含依赖包、JSON 清单和许可证。
+
+Validation: A gathered standalone deployment retained all six ZIPs, manifest.json, provisioning scripts, and third-party licenses, and successfully bootstrapped offline in a fresh cache. Documentation and diff whitespace checks passed.
 
 ## 6. 测试与验收
 

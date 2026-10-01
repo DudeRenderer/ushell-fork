@@ -5,7 +5,7 @@
 	<Location>//UE5/Main/Engine/Extras/ushell
   </Location>
   <Function> This is a component used to implement features of ushell, a command line environment for working with Unreal Engine projects. Ushell is currently only used internally.
-  It is implemented as a URL embedded in source code that is downloaded on demand and extracted on an end-user's PC. Please note that no source code or pre-compiled binaries exist in source control - only a https:// URL.
+  Windows x64 runtime snapshots and licenses are included in dependencies/windows-x64. Startup verifies and installs these local packages by default. Download URLs remain for explicit USHELL_ALLOW_DOWNLOADS=1 fallback; other platforms retain their existing provisioning policy.
   </Function>
   <Eula>https://raw.githubusercontent.com/BurntSushi/ripgrep/master/LICENSE-MIT</Eula>
   <RedistributeTo>

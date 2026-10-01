@@ -35,19 +35,26 @@ directory unless `--project` selects a project explicitly.
 
 ### 2. Python provisioning
 
-The NT launcher uses
-[`channels/flow/nt/provision.bat`](channels/flow/nt/provision.bat) to install a
-versioned embedded CPython and Pip under the ushell working directory. The
-current script requests Python 3.14.3 and verifies the Python archive with
-SHA-256.
+Windows uses [provision.ps1](channels/flow/nt/provision.ps1), reached through
+[provision.bat](channels/flow/nt/provision.bat) for cmd and directly for
+PowerShell/Windows Bash. It needs no existing Python. Resolution is a verified
+installed Python 3.14.3 cache, then the repository snapshot in
+`dependencies/windows-x64/`, then an optional pinned upstream download.
+`USHELL_ALLOW_DOWNLOADS=1` is required for that fallback; the default is offline.
+Local provisioning verifies archive and required-file SHA-256 hashes, extracts
+to staging, and checks the interpreter, standard library, native modules, and
+existing Pip before publishing `python/current`. It does not run get-pip or Pip
+installation. The online fallback verifies the upstream Python hash and installs
+Pip; its file inventory permits later offline cache reuse.
 
 The POSIX launcher uses
 [`channels/flow/posix/provision.sh`](channels/flow/posix/provision.sh). It finds
 a suitable local Python (currently 3.11 or newer on Linux and 3.12 or newer on
 other POSIX hosts), creates a virtual environment, and adds Pip and certificates.
 
-Provisioning is performed before Flow bootstrap on every entry path, but the
-version marker makes an already-current environment a fast path.
+Provisioning is performed before Flow bootstrap on every entry path. Windows
+checks version, runtime imports, and required-file hashes before reusing a cache;
+a version marker alone is not sufficient.
 
 ### 3. Flow bootstrap
 
@@ -73,7 +80,8 @@ flowchart TD
     POSIX["Bash/Zsh: source ushell.sh"] --> POSIXBOOT["channels/flow/posix/boot.sh"]
     CYGWIN["Cygwin: source ushell.sh"] --> NTSH["channels/flow/nt/boot.sh"]
 
-    NTBAT --> NTPROV["NT provision.bat"]
+    NTBAT --> NTWRAP["NT provision.bat"]
+    NTWRAP --> NTPROV["NT provision.ps1"]
     NTPS --> NTPROV
     NTSH --> NTPROV
     POSIXBOOT --> POSIXPROV["POSIX provision.sh"]
@@ -251,9 +259,17 @@ list layout, or other multiple-inheritance mechanics is not.
   [`system/version`](channels/flow/core/system/version), descriptor timestamps,
   or the discovered channel-name set indicates a change.
 - Tools are cached by declared name and version beneath the working directory.
-  A cached tool manifest avoids repeated downloads. Enabled bundles are fetched,
-  SHA-1 checked when a digest is declared, extracted, validated for declared
-  binaries, and exposed through shims.
+  On Windows, `flow.dependencies` validates the matching installed cache before
+  looking for a version/platform-matched repository package, and only downloads
+  if the package is absent and `USHELL_ALLOW_DOWNLOADS=1`. Repository snapshots
+  use their own SHA-256 hashes, not upstream bundle SHA-1 values. All required
+  files (including Clink DLLs) are verified. Only enabled bundles participate;
+  disabled declarations cannot reuse a same-named tool from another channel.
+  Staged installations and the command registry are published after validation,
+  with rollback if replacement fails. Warm bootstrap checks both the package
+  manifest fingerprint and tool integrity before reusing its primary manifest.
+  On POSIX, the existing download/cache behavior remains in place. Online tool
+  payloads retain descriptor SHA-1 checks when declared.
 - Every existing channel `pylib/` directory is recorded in parent order and
   appended to Python's `sys.path` when the runtime manifest is loaded. This
   makes shared channel modules importable inside the ushell Python process; it
@@ -266,8 +282,7 @@ list layout, or other multiple-inheritance mechanics is not.
 
 - Native Windows `cmd.exe` and PowerShell use
   `%LOCALAPPDATA%\ushell\.working` by default. `flow_working_dir` overrides this
-  in their boot scripts. The Cygwin NT shell adapter uses the local-app-data
-  location directly.
+  in their boot scripts. Windows Bash honors the same override.
 - POSIX uses `~/.ushell/.working`.
 - Python environments, state directories, manifests, shims, completion files,
   logs, noticeboards, and cached tools are generated below those working roots.
@@ -277,14 +292,15 @@ list layout, or other multiple-inheritance mechanics is not.
 
 ### Failure modes
 
-- **Provisioning and boot propagation:** native Windows provisioning checks its
-  required utilities, download, SHA-256, extraction, and Pip steps, records a
-  `provision.log`, and its `cmd.exe`/PowerShell adapters propagate reported
-  failures. POSIX reports provisioning progress to the console; it explicitly
+- **Provisioning and boot propagation:** Windows validates in temporary
+  directories, reports errors to stderr, and does not publish a success marker
+  or partial command registry after failure. cmd, PowerShell, and Windows Bash
+  propagate failure; `--help` is treated as successful completion. A damaged
+  repository package fails without silently falling back to a download.
+  POSIX reports provisioning progress to the console; it explicitly
   checks Python selection and virtual-environment creation, but does not check
   the `get-pip.py` pipeline or `pip install certifi` status. In addition, the
-  post-`boot.py` check in the POSIX adapter and the provisioning/`boot.py`
-  checks in the Cygwin adapter use `[ ! $? ]`, which does not reliably propagate
+  post-`boot.py` check in the POSIX adapter uses `[ ! $? ]`, which does not reliably propagate
   nonzero status. These gaps can allow startup to continue with incomplete
   provisioning or after bootstrap failure.
 - **Channel graph and commands:** a missing `Channel`, missing version, invalid
@@ -294,11 +310,14 @@ list layout, or other multiple-inheritance mechanics is not.
 - **Stale or unreadable manifests:** cache reuse depends on timestamps, a marker
   derived from discovered channel names, and the current Python environment.
   Timestamp anomalies, marker collisions, interrupted replacement, or Python
-  `marshal` incompatibility can require removing generated state and restarting.
+  `marshal` incompatibility can require removing generated state and restarting
+  on POSIX. Windows additionally validates dependency state, repairs missing
+  files locally, and rebuilds unreadable manifests. A malformed repository
+  dependency manifest is an actionable error, not permission to download.
 - **Tools:** HTTP errors, digest mismatch, extraction failure, missing declared
   binaries, permissions, or filesystem races can leave a tool unavailable.
-  Bootstrap reports acquisition failures, but commands that require the tool may
-  fail later when its shim or binary is absent.
+  Windows bootstrap fails before replacing the main registry. POSIX acquisition
+  failures can still surface later when a command's shim or binary is absent.
 - **Unreal context:** Unreal-aware commands require a discoverable `.uproject`,
   a branch with `Engine/`, or a resolvable installed-engine association. Missing
   project files, engine directories, target metadata, or platform provisions
@@ -309,10 +328,12 @@ list layout, or other multiple-inheritance mechanics is not.
 
 ## Current limitations and improvement opportunities
 
-- **No discovered automated test suite.** The repository currently has no
-  automated test runner or test directory covering bootstrap, cache invalidation,
-  descriptor validation, shell adapters, or command composition. Focused tests
-  around those boundaries would reduce cross-platform regression risk.
+- **Test coverage is focused on Windows local-first startup.** Standard-library
+  tests in `tests/` cover provisioning, package/cache validation, download gates,
+  failure propagation, shell adapters, and distribution. Run
+  `python -Xutf8 -B -m unittest discover -s tests -v`. POSIX policy regression
+  tests use controlled substitutes; native Linux/macOS boot and all Unreal/P4
+  workflows are not covered by this suite.
 - **Platform-channel discovery is unfinished.** The
   `_get_sources_platform()` hook in bootstrap is a TODO and currently does
   nothing, even though Unreal platform Python providers have their own separate
@@ -321,7 +342,8 @@ list layout, or other multiple-inheritance mechanics is not.
   tool manifests use `marshal`, a Python-specific format without a stable
   cross-version persistence guarantee. A versioned, validated schema and clear
   recovery path would make upgrades safer.
-- **SHA-1 is limited.** Tool bundles use SHA-1 for integrity checks. SHA-1 is not
+- **Upstream SHA-1 is limited.** Online tool bundles still use SHA-1; repository
+  snapshots use SHA-256. SHA-1 is not
   collision-resistant by modern standards; descriptors should move to a
   stronger digest and ideally support authenticated provenance.
 - **Dynamic imports and multiple inheritance are complex.** Descriptor scripts

@@ -24,6 +24,60 @@ Alternatively you can use the '--project=' command line argument;
 The `.project [path_to_uproject]` command can be used to change the session's
 active project from within ushell.
 
+# Windows local-first dependencies
+
+Windows startup needs no preinstalled Python and downloads nothing by default.
+cmd, PowerShell, and Windows Bash use the same repository snapshots under
+dependencies/windows-x64/. Keep that directory when distributing ushell.
+
+Resolution order is: verified installed cache, matching repository ZIP, then an
+explicitly enabled download. The bundled versions are Python 3.14.3, Clink
+1.0.0a6, fd 10.3.0, fzf 0.56.3, ripgrep 14.1.1, and vswhere 3.1.7. The JSON
+manifest records snapshot SHA-256 values and hashes of required runtime files.
+These are repacked installed runtimes, not the original upstream archives.
+
+The default working directory is %LOCALAPPDATA%\ushell\.working. To test with
+an independent cache, set flow_working_dir before launching. For example:
+
+    cmd:        set "flow_working_dir=D:\ushell test\working"
+    PowerShell: $env:flow_working_dir = 'D:\ushell test\working'
+    Git Bash:   export flow_working_dir='D:/ushell test/working'
+
+Missing/corrupt required files trigger local repair on the next boot. Extraction
+and validation finish in a staging directory before an installation or command
+registry replaces the previous one. A corrupt repository ZIP is an error, even
+when downloads are allowed: restore it from source control first.
+
+If a matching package is unavailable, explicitly opt in to network fallback:
+
+    cmd:        set "USHELL_ALLOW_DOWNLOADS=1"
+    PowerShell: $env:USHELL_ALLOW_DOWNLOADS = '1'
+    Git Bash:   export USHELL_ALLOW_DOWNLOADS=1
+
+Unset the variable to restore the default. This also gates legacy Channel.pip()
+installation and tool-download diagnostics on Windows. Perforce, build downloads,
+and other user-invoked business commands are unaffected. Linux/macOS provisioning
+and dependency-download policy are unchanged.
+
+To refresh snapshots from a trusted installed cache, use a Python 3.14.3 runtime:
+
+    python scripts/package_windows_dependencies.py --cache-root <working-directory>
+
+The packager checks versions, removes generated install metadata and machine-
+specific Pip launchers, preserves embedded Python bytecode, and includes licenses.
+Version upgrades also require updating the packager, tool descriptors, and (for
+Python) provision.ps1's version and upstream hash. Review licenses and manifest
+diffs, rerun the tests, and commit ZIPs and manifest together. See
+dependencies/windows-x64/README.md for package details.
+
+Run the standard-library tests using a provisioned Python:
+
+    <working-directory>\python\current\flow_python.exe -Xutf8 -B -m unittest discover -s tests -v
+
+The Windows integration tests use isolated temporary caches and Unicode paths.
+Git Bash checks are skipped when Git Bash is unavailable; native Linux/macOS
+end-to-end boot is not covered by the Windows test run.
+
 # Mac and Linux
 
 On POSIX-based platforms ushell works by establishing itself in the current
@@ -106,6 +160,9 @@ of which branch they may be working on.
 create a standalone deployment. This can be useful as a mechanism for managing
 site-specific commands, or having a different ushell update schedule compared to
 that for engine integrations.
+
+Gathered deployments retain the dependency ZIPs, JSON manifest, and third-party
+license files so Windows can initialize offline after distribution.
 
 # Scripting
 
@@ -233,8 +290,8 @@ my_cmd = flow.describe.Command()
 my_cmd.source("cmds/mycmd.py", "MyCmdClass")
 my_cmd.invoke("mycmd", "zippy")
 
-# Describe the channel. The pip() method can be used to install pip from the
-# PyPi repository. version() can be used to invalidate a channel when updates
+# Describe the channel. The legacy pip() method installs packages from PyPI
+# (Windows requires USHELL_ALLOW_DOWNLOADS=1). version() invalidates a channel when updates
 # are pulled. The parent() forms channels into a tree and informs the order of
 # inheritance when overriding commands.
 channel = flow.describe.Channel()
