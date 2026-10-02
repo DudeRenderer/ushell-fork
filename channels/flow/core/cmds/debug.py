@@ -8,11 +8,13 @@ import hashlib
 import marshal
 import flow.cmd
 import flow.describe
+from flow import dependencies
 from pathlib import Path
 from urllib.request import urlopen, URLError
 
 #-------------------------------------------------------------------------------
 def _http_get(url, on_data):
+    dependencies.require_downloads(f"Downloading tool diagnostic payload '{url}'")
     # Try and get the certifi CA file
     try:
         import certifi

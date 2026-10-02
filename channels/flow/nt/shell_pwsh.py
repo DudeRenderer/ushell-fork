@@ -32,7 +32,8 @@ class _Shell(object):
         run_py_path = os.path.abspath(__file__ + "/../../core/system/run.py")
         start_dir = os.getcwd()
 
-        with open(cookie, "wt") as out:
+        # Windows PowerShell 5.1 treats UTF-8 without a BOM as the ANSI code page.
+        with open(cookie, "wt", encoding="utf-8-sig") as out:
             header = _get_header_script()
             autocompleter = _get_autocompleter_script()
             function_template = _get_function_template_script()

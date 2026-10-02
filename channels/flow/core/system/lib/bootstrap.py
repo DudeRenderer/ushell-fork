@@ -9,6 +9,7 @@ from typing import Iterable
 import fsutils
 import marshal
 import flow.describe
+from flow import dependencies
 import subprocess as sp
 import os
 import stat
@@ -49,6 +50,7 @@ _log = None
 
 #-------------------------------------------------------------------------------
 def _http_get(url, dest_dir, progress_cb=None):
+    dependencies.require_downloads(f"Downloading tool payload '{url}'")
     import re
     from urllib.request import urlopen
 
@@ -75,7 +77,11 @@ def _http_get(url, dest_dir, progress_cb=None):
     content_header = client.headers.get("content-disposition", "")
     m = re.search(r'filename="?([^;"]+)"?(;|$)', content_header)
     if m: file_name = m.group(1)
-    else: file_name = os.path.basename(client.url)
+    else:
+        from urllib.parse import urlsplit, unquote
+        file_name = os.path.basename(unquote(urlsplit(client.url).path))
+    if dependencies.is_windows():
+        dependencies.safe_path(dest_dir, file_name)
     dest_path = dest_dir + file_name
     assert not os.path.exists(dest_path), f"Directory '{dest_path}' unexpectedly exists"
 
@@ -187,7 +193,7 @@ def _acquire_tool(name, tool, manifest, target_dir, progress_cb):
         if expected_sha1 := bundle["sha1"]:
             expected_sha1 = expected_sha1.lower()
             if sha1 != expected_sha1:
-                assert false, f"Unexpected content bundle data for tool '{name}' [sha1:{sha1}]"
+                raise RuntimeError(f"Unexpected content bundle data for tool '{name}' [sha1:{sha1}]")
 
         bundle["sha1"] = sha1
 
@@ -268,6 +274,8 @@ def _manifest_tool(name, tool):
 
 #-------------------------------------------------------------------------------
 def _install_tool(name, tool, cleaner):
+    if dependencies.is_windows():
+        return _install_tool_windows(name, tool)
     manifest = _manifest_tool(name, tool)
 
     tool_double = f"{name}-{tool._version}/"
@@ -354,6 +362,94 @@ def _install_tool(name, tool, cleaner):
     return manifest
 
 
+def _enabled_bins(manifest):
+    return tuple(sorted({pair for bundle in manifest["bundles"].values()
+                         if bundle["enabled"] for pair in bundle["bin_paths"]}))
+
+
+def _valid_tool_cache(directory, manifest, package):
+    try:
+        with (directory / "manifest.2.flow").open("rb") as stream:
+            cached = marshal.load(stream)
+        if any(cached.get(key) != manifest[key] for key in ("version", "double", "bundles")):
+            return False
+        if set(cached["bin_paths"]) != set(_enabled_bins(manifest)):
+            return False
+        if not all(dependencies.safe_path(directory, name).is_file()
+                   for name, _ in _enabled_bins(manifest)):
+            return False
+        files = package["required_files"] if package else cached.get("required_files")
+        # A verified online install can have a different repacked layout/license set.
+        if cached.get("acquisition") == "download":
+            files = cached.get("required_files")
+        return dependencies.valid_files(directory, files)
+    except (OSError, EOFError, ValueError, TypeError, KeyError, AttributeError):
+        return False
+
+
+def _install_tool_windows(name, tool):
+    manifest = _manifest_tool(name, tool)
+    if not any(bundle["enabled"] for bundle in manifest["bundles"].values()):
+        return manifest
+    directory = dependencies.safe_path(Path("../../../../tools"), manifest["double"])
+    package = dependencies.package_for(name, tool._version)
+    if _valid_tool_cache(directory, manifest, package):
+        _log.print(f"Using cached {manifest['double']}")
+        return {**manifest, "bin_paths": _enabled_bins(manifest)}
+    archive = (dependencies.safe_path(dependencies.PACKAGE_ROOT, package["archive"])
+               if package else dependencies.PACKAGE_ROOT / f"{manifest['double']}.zip")
+    if archive.exists() and not package:
+        raise RuntimeError(f"Missing dependency metadata for '{archive}'")
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="install-", dir=directory.parent) as temporary:
+        stage = Path(temporary) / "payload"
+        if package and archive.is_file():
+            _log.print(f"Installing {manifest['double']} from {archive}")
+            dependencies.extract(package, stage)
+            manifest["acquisition"] = "repository"
+            manifest["package_sha256"] = package["sha256"]
+            manifest["required_files"] = package["required_files"]
+        else:
+            dependencies.require_downloads(
+                f"Missing {manifest['double']}; checked cache '{directory}' and package '{archive}'")
+            _log.print(f"Downloading {manifest['double']} (USHELL_ALLOW_DOWNLOADS=1)")
+            _acquire_tool(name, tool, manifest, stage.as_posix() + "/", lambda _: None)
+            if hasattr(tool, "post_install"):
+                tool.post_install(stage.as_posix() + "/")
+            manifest["acquisition"] = "download"
+            manifest["required_files"] = dependencies.inventory(stage)
+        for binary, _ in _enabled_bins(manifest):
+            if not dependencies.safe_path(stage, binary).is_file():
+                raise RuntimeError(f"Missing required file '{binary}' for {manifest['double']}")
+        # Clink cannot inject without its companion DLL, including online installs.
+        if name == "clink" and not (stage / "clink_x64.dll").is_file():
+            raise RuntimeError("Missing required Clink runtime file clink_x64.dll")
+        manifest["bin_paths"] = _enabled_bins(manifest)
+        with (stage / "manifest.2.flow").open("wb") as out:
+            marshal.dump(manifest, out)
+        dependencies.publish(stage, directory)
+    return manifest
+
+
+def _valid_dependency_state(state):
+    try:
+        with (state / "manifest").open("rb") as stream:
+            primary = marshal.load(stream)
+        if primary.get("dependency_fingerprint") != dependencies.fingerprint():
+            return False
+        for channel in primary["channels"]:
+            for name, manifest in channel["tools"].items():
+                if not any(b["enabled"] for b in manifest["bundles"].values()):
+                    continue
+                package = dependencies.package_for(name, manifest["version"])
+                directory = dependencies.safe_path(Path(primary["tools_dir"]), manifest["double"])
+                if not _valid_tool_cache(directory, manifest, package):
+                    return False
+        return True
+    except (OSError, EOFError, ValueError, TypeError, KeyError, AttributeError):
+        return False
+
+
 
 #-------------------------------------------------------------------------------
 def _validate_command(channel_dir, name, command):
@@ -383,6 +479,7 @@ def _build_channel(channel_name:str, channel_dir:Path, cleaner:"_Cleaner") -> di
 
     # Install channel's pips.
     if channel._pips:
+        dependencies.require_downloads(f"Installing Pip dependencies for channel '{channel_name}'")
         _log.print("Pips:")
         _log.indent("Pips")
         for pip_name in channel._pips:
@@ -390,6 +487,8 @@ def _build_channel(channel_name:str, channel_dir:Path, cleaner:"_Cleaner") -> di
             cmd = (sys.executable, "-Xutf8", "-Esum", "pip", "install", pip_name)
             result = sp.run(cmd, stdout=sp.DEVNULL, stderr=sp.DEVNULL)
             if result.returncode:
+                if dependencies.is_windows():
+                    raise RuntimeError(f"Failed to install Pip dependency '{pip_name}'")
                 _log.print(" ...failed");
         _log.unindent()
 
@@ -552,6 +651,8 @@ def _finalise(manifests):
         "tools_dir"  : os.path.abspath("../../../../tools") + "/",
         "cmd_tree"   : _plant_cmd_tree(manifests.values()),
     }
+    if dependencies.is_windows():
+        primary["dependency_fingerprint"] = dependencies.fingerprint()
 
     # Create shims
     _create_shims(primary)
@@ -576,7 +677,7 @@ class _Cleaner(object):
         return ret
 
     def __del__(self) -> None:
-        shutil.rmtree(self._dir.parent, ignore_errors=True)
+        shutil.rmtree(self._dir, ignore_errors=True)
 
     def delete(self, path:Path) -> bool:
         try: path.rename(self._dir / str(self._count))
@@ -772,20 +873,27 @@ def impl() -> Path:
     state_dir = _StateDir(working_dir)
     if sources.get_age() <= state_dir.get_age():
         if (state_dir.get_dir() / sources.get_key()).is_file():
-            return state_dir.get_dir()
+            if not dependencies.is_windows() or _valid_dependency_state(state_dir.get_dir()):
+                return state_dir.get_dir()
 
     dest_dir = state_dir.get_dir()
 
     (dest_dir.parent / "tools").mkdir(parents=True, exist_ok=True)
 
     cleaner = _Cleaner(working_dir)
-    cleaner.delete(dest_dir)
+    if not dependencies.is_windows():
+        cleaner.delete(dest_dir)
 
     temp_dir = cleaner.create_temp_dir(dest_dir.name)
     try:
         _update(temp_dir, sources, cleaner)
-        dest_dir = temp_dir.rename(dest_dir)
+        if dependencies.is_windows():
+            dependencies.publish(temp_dir, dest_dir)
+        else:
+            dest_dir = temp_dir.rename(dest_dir)
     except FileExistsError:
+        if dependencies.is_windows():
+            raise
         pass
 
     return dest_dir

@@ -37,6 +37,10 @@ class Gather(flow.cmd.Cmd):
         # Validate destination
         print("dest:", self.args.destdir)
         dest_dir = self.args.destdir
+        source_path, destination_path = src_dir.resolve(), dest_dir.resolve()
+        if (source_path == destination_path or source_path in destination_path.parents
+                or destination_path in source_path.parents):
+            raise ValueError("Source and destination directories must not overlap")
         if dest_dir.exists():
             if not self.args.overwrite:
                 raise ValueError(f"'{dest_dir}' already exists")
@@ -53,7 +57,7 @@ class Gather(flow.cmd.Cmd):
         def is_src_file(item):
             if not item.is_file():          return
             if item.suffix == ".pyc":       return
-            if item.parent.name == "tps":   return
+            if any(part in (".git", "__pycache__", ".working") for part in item.parts): return
             return item
 
         print(src_dir / "**")
